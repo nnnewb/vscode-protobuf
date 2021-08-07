@@ -8,12 +8,16 @@ export default class SemanticTokenProvider implements vscode.DocumentSemanticTok
   private highlight: string;
 
   constructor(public legend: vscode.SemanticTokensLegend) {
-    Parser.init().then(() => {
-      Parser.Language.load(path.resolve(__dirname, '../../assets/tree-sitter-proto.wasm')).then((lang) => {
-        this.parser = new Parser();
-        this.parser.setLanguage(lang);
-      });
-    });
+    Parser.init()
+      .then(() => {
+        Parser.Language.load(path.resolve(__dirname, '../../assets/tree-sitter-proto.wasm'))
+          .then((lang) => {
+            this.parser = new Parser();
+            this.parser.setLanguage(lang);
+          })
+          .catch(console.error);
+      })
+      .catch(console.error);
     this.highlight = readFileSync(path.resolve(__dirname, '../../assets/highlight.scm')).toString('utf-8');
   }
 
