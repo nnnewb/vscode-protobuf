@@ -1,13 +1,16 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
+import path = require('path');
 import * as vscode from 'vscode';
+import Parser = require('web-tree-sitter');
 import SemanticTokenProvider from './providers/SemanticHighlightProvider';
+import ProtoTrees from './trees';
+
+let trees: ProtoTrees | null = null;
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
-  console.log('activated!');
-
+export async function activate(context: vscode.ExtensionContext) {
   // register semantic tokens provider
   const tokenTypes = [
     'type',
@@ -27,9 +30,40 @@ export function activate(context: vscode.ExtensionContext) {
   const modifiers = ['definition', 'deprecated', 'documentation'];
   const selector: vscode.DocumentSelector = { language: 'proto', scheme: 'file' };
   const legend = new vscode.SemanticTokensLegend(tokenTypes, modifiers);
-  const provider = new SemanticTokenProvider(legend);
 
+  await Parser.init();
+  console.log('tree-sitter initialized');
+
+  const lang = await Parser.Language.load(path.resolve(__dirname, '../assets/tree-sitter-proto.wasm'));
+  console.log('tree-sitter-proto.wasm loaded');
+  trees = new ProtoTrees(lang);
+
+  vscode.workspace.onDidOpenTextDocument(function (doc) {
+    if (doc.languageId === 'proto') {
+      trees?.addDoc(doc);
+    }
+  });
+  vscode.workspace.onDidCloseTextDocument(function (doc) {
+    if (doc.languageId === 'proto') {
+      trees?.dropDoc(doc.uri.toString());
+    }
+  });
+  vscode.workspace.onDidChangeTextDocument(function (ev) {
+    if (ev.document.languageId === 'proto') {
+      trees?.editDoc(ev);
+    }
+  });
+
+  for (const editor of vscode.window.visibleTextEditors) {
+    if (editor.document.languageId === 'proto') {
+      trees.addDoc(editor.document);
+    }
+  }
+
+  const provider = new SemanticTokenProvider(trees, legend);
   context.subscriptions.push(vscode.languages.registerDocumentSemanticTokensProvider(selector, provider, legend));
+
+  console.log('extension activated!');
 }
 
 // this method is called when your extension is deactivated
