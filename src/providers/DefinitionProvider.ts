@@ -1,14 +1,6 @@
 import * as vscode from 'vscode';
-import { Point, SyntaxNode } from 'web-tree-sitter';
 import ProtoTrees from '../trees';
-
-function asPosition(point: Point): vscode.Position {
-  return new vscode.Position(point.row, point.column);
-}
-
-function asRange(node: SyntaxNode): vscode.Range {
-  return new vscode.Range(asPosition(node.startPosition), asPosition(node.endPosition));
-}
+import { asRange } from '../trees';
 
 export default class DefinitionProvider implements vscode.DefinitionProvider {
   constructor(public trees: ProtoTrees) {}

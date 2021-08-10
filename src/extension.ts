@@ -4,6 +4,7 @@ import path = require('path');
 import * as vscode from 'vscode';
 import Parser = require('web-tree-sitter');
 import DefinitionProvider from './providers/DefinitionProvider';
+import DocumentSymbolProvider from './providers/DocumentSymbolProvider';
 import SemanticTokenProvider from './providers/SemanticHighlightProvider';
 import ProtoTrees from './trees';
 
@@ -68,6 +69,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const definitionProvider = new DefinitionProvider(trees);
   context.subscriptions.push(vscode.languages.registerDefinitionProvider(selector, definitionProvider));
+
+  const documentSymbolProvider = new DocumentSymbolProvider(trees);
+  context.subscriptions.push(vscode.languages.registerDocumentSymbolProvider(selector, documentSymbolProvider));
 
   console.log('extension activated!');
 }

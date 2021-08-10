@@ -2,8 +2,16 @@ import { Tree } from 'web-tree-sitter';
 import Parser = require('web-tree-sitter');
 import * as vscode from 'vscode';
 
-function asPoint(pos: vscode.Position): Parser.Point {
+export function asPoint(pos: vscode.Position): Parser.Point {
   return { row: pos.line, column: pos.character };
+}
+
+export function asPosition(point: Parser.Point): vscode.Position {
+  return new vscode.Position(point.row, point.column);
+}
+
+export function asRange(node: Parser.SyntaxNode): vscode.Range {
+  return new vscode.Range(asPosition(node.startPosition), asPosition(node.endPosition));
 }
 
 export default class ProtoTrees {
