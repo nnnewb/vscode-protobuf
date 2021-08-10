@@ -3,6 +3,7 @@
 import path = require('path');
 import * as vscode from 'vscode';
 import Parser = require('web-tree-sitter');
+import DefinitionProvider from './providers/DefinitionProvider';
 import SemanticTokenProvider from './providers/SemanticHighlightProvider';
 import ProtoTrees from './trees';
 
@@ -60,8 +61,13 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   }
 
-  const provider = new SemanticTokenProvider(trees, legend);
-  context.subscriptions.push(vscode.languages.registerDocumentSemanticTokensProvider(selector, provider, legend));
+  const semanticHighlightProvider = new SemanticTokenProvider(trees, legend);
+  context.subscriptions.push(
+    vscode.languages.registerDocumentSemanticTokensProvider(selector, semanticHighlightProvider, legend)
+  );
+
+  const definitionProvider = new DefinitionProvider(trees);
+  context.subscriptions.push(vscode.languages.registerDefinitionProvider(selector, definitionProvider));
 
   console.log('extension activated!');
 }
