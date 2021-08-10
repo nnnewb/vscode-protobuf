@@ -14,10 +14,6 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
-    "capabilities": {
-      "definitionProvider": true,
-      "documentSymbolProvider": true
-    },
     "configurationDefaults": {
       "[proto]": {
         "editor.semanticHighlighting.enabled": true

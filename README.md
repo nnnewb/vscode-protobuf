@@ -9,7 +9,7 @@ Help daily work with protocol buffer bulls\*\*t easier.
 - [x] syntax highlight
 - [x] document symbol provider
 - [x] basic definition provider (current document only)
-- [ ] hover provider
+- [x] hover provider
 - [ ] code completion
 - [ ] frequently used snippets
 - [ ] linting
