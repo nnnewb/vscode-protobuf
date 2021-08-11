@@ -3,6 +3,7 @@
 import path = require('path');
 import * as vscode from 'vscode';
 import Parser = require('web-tree-sitter');
+import CompletionItemProvider from './providers/CompletionItemProvider';
 import DefinitionProvider from './providers/DefinitionProvider';
 import DocumentSymbolProvider from './providers/DocumentSymbolProvider';
 import HoverProvider from './providers/HoverProvider';
@@ -76,6 +77,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const hoverProvider = new HoverProvider(trees);
   context.subscriptions.push(vscode.languages.registerHoverProvider(selector, hoverProvider));
+
+  const completionProvider = new CompletionItemProvider(trees);
+  context.subscriptions.push(vscode.languages.registerCompletionItemProvider(selector, completionProvider));
 
   console.log('extension activated!');
 }
