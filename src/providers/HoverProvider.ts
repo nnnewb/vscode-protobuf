@@ -10,7 +10,7 @@ export default class HoverProvider implements vscode.HoverProvider {
   ): vscode.ProviderResult<vscode.Hover> {
     const sym = document.getText(document.getWordRangeAtPosition(position));
     const firstMatch = this.trees
-      .query(document, '(message (message_name) @message)')
+      .query('(message (message_name) @message)')
       .captures(this.trees.get(document).rootNode)
       .filter((c) => c.node.text === sym)[0];
 

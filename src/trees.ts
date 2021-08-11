@@ -88,12 +88,7 @@ export default class ProtoTrees {
     this.parser.delete();
   }
 
-  query(doc: vscode.TextDocument, source: string): Parser.Query {
-    const docId = doc.uri.toString();
-    if (!this.docTrees[docId]) {
-      this.addDoc(doc);
-    }
-
+  query(source: string): Parser.Query {
     return this.lang.query(source);
   }
 
@@ -104,5 +99,14 @@ export default class ProtoTrees {
     }
 
     return this.docTrees[docId].tree;
+  }
+
+  walk(doc: vscode.TextDocument): Parser.TreeCursor {
+    const docId: string = doc.uri.toString();
+    if (!this.docTrees[docId]) {
+      this.addDoc(doc);
+    }
+
+    return this.docTrees[docId].tree.walk();
   }
 }

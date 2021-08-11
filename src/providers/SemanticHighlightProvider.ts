@@ -13,7 +13,7 @@ export default class SemanticTokenProvider implements vscode.DocumentSemanticTok
   provideDocumentSemanticTokens(doc: vscode.TextDocument): vscode.ProviderResult<vscode.SemanticTokens> {
     const tokenBuilder = new vscode.SemanticTokensBuilder(this.legend);
     this.trees
-      .query(doc, this.highlight)
+      .query(this.highlight)
       .captures(this.trees.get(doc).rootNode)
       .forEach((capture) => {
         if (this.legend.tokenTypes.includes(capture.name)) {

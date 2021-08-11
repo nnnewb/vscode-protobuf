@@ -10,7 +10,7 @@ export default class DocumentSymbolProvider implements vscode.DocumentSymbolProv
   ): vscode.ProviderResult<vscode.SymbolInformation[] | vscode.DocumentSymbol[]> {
     return Promise.resolve(
       this.trees
-        .query(document, '(message (message_name) @struct)\n(rpc (rpc_name) @method)')
+        .query('(message (message_name) @struct)\n(rpc (rpc_name) @method)')
         .captures(this.trees.get(document).rootNode)
         .map(function (capture) {
           let kind: vscode.SymbolKind = vscode.SymbolKind.Struct;
