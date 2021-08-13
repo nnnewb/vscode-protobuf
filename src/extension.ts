@@ -66,7 +66,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const semanticHighlightProvider = new SemanticTokenProvider(trees, legend);
   context.subscriptions.push(
-    vscode.languages.registerDocumentSemanticTokensProvider(selector, semanticHighlightProvider, legend)
+    vscode.languages.registerDocumentSemanticTokensProvider(selector, semanticHighlightProvider, legend),
+    vscode.languages.registerDocumentRangeSemanticTokensProvider(selector, semanticHighlightProvider, legend)
   );
 
   const definitionProvider = new DefinitionProvider(trees);

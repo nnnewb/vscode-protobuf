@@ -16,7 +16,9 @@ export default class HoverProvider implements vscode.HoverProvider {
 
     if (firstMatch) {
       const definition = document.getText(asRange(firstMatch.node.parent!));
-      return Promise.resolve(new vscode.Hover('```\n' + definition + '\n```'));
+      const hoverDocument = new vscode.MarkdownString();
+      hoverDocument.appendCodeblock(definition, 'proto');
+      return new vscode.Hover(hoverDocument);
     }
   }
 }

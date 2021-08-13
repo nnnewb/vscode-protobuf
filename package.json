@@ -24,7 +24,35 @@
         "id": "proto",
         "extensions": [
           ".proto"
+        ],
+        "aliases": [
+          "Protocol Buffers"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "proto",
+        "scopeName": "source.proto",
+        "path": "./syntaxes/proto3.tmLanguage.json"
+      },
+      {
+        "scopeName": "markdown.codeblock.proto",
+        "path": "./syntaxes/proto3.codeblock.json",
+        "injectTo": [
+          "text.html.markdown"
         ]
+      }
+    ],
+    "snippets": [
+      {
+        "language": "proto",
+        "path": "./snippets/proto3.json"
+      },
+      {
+        "language": "proto",
+        "path": "./snippets/google-api.json"
       }
     ]
   },

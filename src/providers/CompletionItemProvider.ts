@@ -1,9 +1,8 @@
-import { create } from 'domain';
 import * as vscode from 'vscode';
 import { SyntaxNode } from 'web-tree-sitter';
 import ProtoTrees, { asPoint, asRange } from '../trees';
 import Tokenizer, { Token } from '../utils/tokenizer';
-import { Message } from '../utils/wrapper';
+import { getFullName } from '../utils/wrapper';
 
 const kwSyntax = createCompletionOption('syntax', vscode.CompletionItemKind.Keyword);
 const kwPackage = createCompletionOption('package', vscode.CompletionItemKind.Keyword);
@@ -81,10 +80,12 @@ More efficient than uint64 if values are often greater than 2^56.
 function createCompletionOption(
   label: string | vscode.CompletionItemLabel,
   kind: vscode.CompletionItemKind | undefined,
-  documentation?: string | vscode.MarkdownString
+  documentation?: string | vscode.MarkdownString,
+  range?: vscode.Range
 ): vscode.CompletionItem {
   const item = new vscode.CompletionItem(label, kind);
   item.documentation = documentation;
+  item.range = range;
   return item;
 }
 
@@ -103,15 +104,22 @@ export default class CompletionItemProvider implements vscode.CompletionItemProv
     const prev = findPreviousToken(document.getText(asRange(node)), node, document.offsetAt(position));
     console.log(`prev token is ${prev?.tok}`);
 
-    const availableTypes = this.trees
-      .query('(message) @msg')
-      .captures(this.trees.get(document).rootNode)
-      .map((capture) => new Message(capture.node))
-      .map((msg) => new vscode.CompletionItem(msg.fullName, vscode.CompletionItemKind.Struct));
-    availableTypes.push(...scalarTypes);
+    const availableTypes: vscode.CompletionItem[] = [];
+    availableTypes.push(
+      ...this.trees
+        .query('(message) @msg')
+        .captures(this.trees.get(document).rootNode)
+        .map((capture) => createCompletionOption(getFullName(capture.node), vscode.CompletionItemKind.Struct)),
+      ...scalarTypes
+    );
 
     const completionResults: vscode.CompletionItem[] = [];
     switch (node.type) {
+      case 'source_file':
+        if (!prev || prev.tok === '}' || prev.tok === ';') {
+          completionResults.push(kwSyntax, kwPackage, kwImport, kwOption, kwMessage, kwEnum);
+        }
+        break;
       case 'message_body':
         if (
           prev?.tok === ';' ||
@@ -121,15 +129,15 @@ export default class CompletionItemProvider implements vscode.CompletionItemProv
           prev?.tok === '}'
         ) {
           if (prev.tok === ';' || prev.tok === '{' || prev.tok === '}') {
-            completionResults.push(kwOptional, kwRepeated);
+            completionResults.push(kwOptional, kwRepeated, kwOption);
           }
           completionResults.push(...availableTypes);
         }
         break;
       case 'field':
-        if (!prev) {
+        if (!prev || prev.tok === 'optional' || prev.tok === 'repeated') {
           // TODO types & optional/repeated & option
-          completionResults.push(kwOptional, kwRepeated, ...availableTypes);
+          completionResults.push(kwOptional, kwRepeated, kwOption, ...availableTypes);
         }
         break;
       case 'service':
@@ -143,7 +151,7 @@ export default class CompletionItemProvider implements vscode.CompletionItemProv
         break;
     }
 
-    return Promise.resolve(completionResults);
+    return completionResults;
   }
 }
 
