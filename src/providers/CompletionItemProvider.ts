@@ -3,109 +3,26 @@ import { SyntaxNode } from 'web-tree-sitter';
 import ProtoTrees, { asPoint, asRange } from '../trees';
 import Tokenizer, { Token } from '../utils/tokenizer';
 import { getFullName } from '../utils/wrapper';
-
-const kwSyntax = createCompletionOption('syntax', vscode.CompletionItemKind.Keyword);
-const kwPackage = createCompletionOption('package', vscode.CompletionItemKind.Keyword);
-const kwOption = createCompletionOption('option', vscode.CompletionItemKind.Keyword);
-const kwImport = createCompletionOption('import', vscode.CompletionItemKind.Keyword);
-const kwMessage = createCompletionOption('message', vscode.CompletionItemKind.Keyword);
-const kwEnum = createCompletionOption('enum', vscode.CompletionItemKind.Keyword);
-const kwReserved = createCompletionOption('reserved', vscode.CompletionItemKind.Keyword);
-const kwRpc = createCompletionOption('rpc', vscode.CompletionItemKind.Keyword);
-
-const kwRepeated = createCompletionOption('repeated', vscode.CompletionItemKind.Keyword);
-const kwOptional = createCompletionOption('optional', vscode.CompletionItemKind.Keyword);
-
-let scalarTypes = [
-  createCompletionOption('bool', vscode.CompletionItemKind.Keyword, ``),
-  createCompletionOption(
-    'int32',
-    vscode.CompletionItemKind.Keyword,
-    `Uses variable-length encoding. 
-Inefficient for encoding negative numbers – if your field is likely to have 
-negative values, use sint32 instead.`
-  ),
-  createCompletionOption(
-    'int64',
-    vscode.CompletionItemKind.Keyword,
-    `Uses variable-length encoding. 
-Inefficient for encoding negative numbers – if your field is likely to have 
-negative values, use sint64 instead.    
-    `
-  ),
-  createCompletionOption('uint32', vscode.CompletionItemKind.Keyword, `Uses variable-length encoding.`),
-  createCompletionOption('uint64', vscode.CompletionItemKind.Keyword, `Uses variable-length encoding.`),
-  createCompletionOption(
-    'sint32',
-    vscode.CompletionItemKind.Keyword,
-    `Uses variable-length encoding. 
-Signed int value. 
-These more efficiently encode negative numbers than regular int32s.    
-    `
-  ),
-  createCompletionOption(
-    'sint64',
-    vscode.CompletionItemKind.Keyword,
-    `Uses variable-length encoding. 
-Signed int value. 
-These more efficiently encode negative numbers than regular int64s.    
-    `
-  ),
-  createCompletionOption(
-    'fixed32',
-    vscode.CompletionItemKind.Keyword,
-    `Always four bytes. 
-More efficient than uint32 if values are often greater than 2^28.    
-    `
-  ),
-  createCompletionOption(
-    'fixed64',
-    vscode.CompletionItemKind.Keyword,
-    `Always eight bytes. 
-More efficient than uint64 if values are often greater than 2^56.    
-    `
-  ),
-  createCompletionOption('sfixed32', vscode.CompletionItemKind.Keyword, `Always four bytes.`),
-  createCompletionOption('sfixed64', vscode.CompletionItemKind.Keyword, `Always eight bytes.`),
-  createCompletionOption('float', vscode.CompletionItemKind.Keyword, ``),
-  createCompletionOption('double', vscode.CompletionItemKind.Keyword, ``),
-  createCompletionOption(
-    'string',
-    vscode.CompletionItemKind.Keyword,
-    `A string must always contain UTF-8 encoded or 7-bit ASCII text.`
-  ),
-  createCompletionOption('bytes', vscode.CompletionItemKind.Keyword, `May contain any arbitrary sequence of bytes.`),
-];
-
-function createCompletionOption(
-  label: string | vscode.CompletionItemLabel,
-  kind: vscode.CompletionItemKind | undefined,
-  documentation?: string | vscode.MarkdownString,
-  range?: vscode.Range
-): vscode.CompletionItem {
-  const item = new vscode.CompletionItem(label, kind);
-  item.documentation = documentation;
-  item.range = range;
-  return item;
-}
+import { createCompletionOption, scalarTypes, keywords, documentOptions, fieldOptions } from './builtins';
 
 export default class CompletionItemProvider implements vscode.CompletionItemProvider {
   constructor(public trees: ProtoTrees) {}
 
-  provideCompletionItems(
-    document: vscode.TextDocument,
-    position: vscode.Position,
-    token: vscode.CancellationToken,
-    context: vscode.CompletionContext
-  ): vscode.ProviderResult<vscode.CompletionItem[] | vscode.CompletionList<vscode.CompletionItem>> {
-    const node = this.trees.get(document).rootNode.namedDescendantForPosition(asPoint(position));
-    console.log(`scope is ${node.type}`);
+  documentOptions(document: vscode.TextDocument): vscode.CompletionItem[] {
+    return documentOptions;
+  }
 
-    const prev = findPreviousToken(document.getText(asRange(node)), node, document.offsetAt(position));
-    console.log(`prev token is ${prev?.tok}`);
+  fieldType(document: vscode.TextDocument): vscode.CompletionItem[] {
+    const availableEnums: vscode.CompletionItem[] = [];
+    availableEnums.push(
+      ...this.trees
+        .query('(enum) @enum')
+        .captures(this.trees.get(document).rootNode)
+        .map((capture) => createCompletionOption(getFullName(capture.node), vscode.CompletionItemKind.Enum))
+    );
 
-    const availableTypes: vscode.CompletionItem[] = [];
-    availableTypes.push(
+    const availableMessages: vscode.CompletionItem[] = [];
+    availableMessages.push(
       ...this.trees
         .query('(message) @msg')
         .captures(this.trees.get(document).rootNode)
@@ -113,11 +30,43 @@ export default class CompletionItemProvider implements vscode.CompletionItemProv
       ...scalarTypes
     );
 
+    return availableEnums.concat(availableMessages);
+  }
+
+  fieldHeading(document: vscode.TextDocument): vscode.CompletionItem[] {
+    return [keywords.option, keywords.optional, keywords.repeated].concat(this.fieldType(document));
+  }
+
+  fieldOptions(document: vscode.TextDocument): vscode.CompletionItem[] {
+    return [...fieldOptions];
+  }
+
+  provideCompletionItems(document: vscode.TextDocument, position: vscode.Position): vscode.CompletionItem[] {
+    const node = this.trees.get(document).rootNode.namedDescendantForPosition(asPoint(position));
+    const currentScope = node.type,
+      parentScope = node.parent?.type;
+    console.log(`current ast scope ${currentScope}, parent ast scope ${parentScope}`);
+
+    const ctx = node.text;
+    console.log(`current completion context: ${ctx}`);
+
+    const prev = findPreviousToken(document.getText(asRange(node)), node, document.offsetAt(position));
+    console.log(`prev token is ${prev?.tok}`);
+
     const completionResults: vscode.CompletionItem[] = [];
     switch (node.type) {
       case 'source_file':
         if (!prev || prev.tok === '}' || prev.tok === ';') {
-          completionResults.push(kwSyntax, kwPackage, kwImport, kwOption, kwMessage, kwEnum);
+          completionResults.push(
+            keywords.syntax,
+            keywords.package,
+            keywords.import,
+            keywords.option,
+            keywords.message,
+            keywords.enum
+          );
+        } else if (prev.tok === 'option') {
+          completionResults.push(...this.documentOptions(document));
         }
         break;
       case 'message_body':
@@ -128,16 +77,27 @@ export default class CompletionItemProvider implements vscode.CompletionItemProv
           prev?.tok === 'optional' ||
           prev?.tok === '}'
         ) {
+          // 光标在空的 message 内，或 field、嵌套的 message 后
           if (prev.tok === ';' || prev.tok === '{' || prev.tok === '}') {
-            completionResults.push(kwOptional, kwRepeated, kwOption);
+            completionResults.push(keywords.optional, keywords.repeated, keywords.option);
           }
-          completionResults.push(...availableTypes);
+          completionResults.push(...this.fieldType(document));
         }
         break;
       case 'field':
-        if (!prev || prev.tok === 'optional' || prev.tok === 'repeated') {
-          // TODO types & optional/repeated & option
-          completionResults.push(kwOptional, kwRepeated, kwOption, ...availableTypes);
+        if (!prev) {
+          // 光标在 field 起始位置
+          completionResults.push(...this.fieldHeading(document));
+        } else if (prev.tok === 'optional' || prev.tok === 'repeated') {
+          // 光标在 optional/repeated 关键字之后
+          completionResults.push(...this.fieldType(document));
+        }
+        break;
+      case 'field_options':
+      case 'field_option':
+        if (!prev || prev.tok === ',') {
+          // 光标在一个 field option 的起始位置
+          completionResults.push(...this.fieldOptions(document));
         }
         break;
       case 'service':
@@ -145,6 +105,16 @@ export default class CompletionItemProvider implements vscode.CompletionItemProv
       case 'rpc':
         break;
       case 'block_lit':
+        break;
+      case 'ERROR':
+        if (parentScope === 'field' && prev && (prev.tok === '[' || prev.tok === '(')) {
+          // 猜测是未完成的 field_options 子树
+          // 光标在 field_options 中的起始位置
+          completionResults.push(...this.fieldOptions(document));
+        } else if (parentScope === 'message_body' && !prev) {
+          // 猜测是未完成的 field 子树起始位置，后继节点不符合语法结构造成解析出 ERROR。
+          completionResults.push(...this.fieldHeading(document));
+        }
         break;
 
       default:
