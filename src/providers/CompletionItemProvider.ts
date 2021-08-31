@@ -12,12 +12,29 @@ export default class CompletionItemProvider implements vscode.CompletionItemProv
     return documentOptions;
   }
 
+  requestResponseType(document: vscode.TextDocument): vscode.CompletionItem[] {
+    const root = this.trees.getDoc(document)?.rootNode;
+    if (!root) {
+      return [];
+    }
+
+    return this.trees
+      .query('(message) @msg')
+      .captures(root)
+      .map((capture) => createCompletionOption(getFullName(capture.node), vscode.CompletionItemKind.Struct));
+  }
+
   fieldType(document: vscode.TextDocument): vscode.CompletionItem[] {
     const availableEnums: vscode.CompletionItem[] = [];
+    const root = this.trees.getDoc(document)?.rootNode;
+    if (!root) {
+      return [];
+    }
+
     availableEnums.push(
       ...this.trees
         .query('(enum) @enum')
-        .captures(this.trees.get(document).rootNode)
+        .captures(root)
         .map((capture) => createCompletionOption(getFullName(capture.node), vscode.CompletionItemKind.Enum))
     );
 
@@ -25,7 +42,7 @@ export default class CompletionItemProvider implements vscode.CompletionItemProv
     availableMessages.push(
       ...this.trees
         .query('(message) @msg')
-        .captures(this.trees.get(document).rootNode)
+        .captures(root)
         .map((capture) => createCompletionOption(getFullName(capture.node), vscode.CompletionItemKind.Struct)),
       ...scalarTypes
     );
@@ -42,9 +59,13 @@ export default class CompletionItemProvider implements vscode.CompletionItemProv
   }
 
   provideCompletionItems(document: vscode.TextDocument, position: vscode.Position): vscode.CompletionItem[] {
-    const node = this.trees.get(document).rootNode.namedDescendantForPosition(asPoint(position));
-    const currentScope = node.type,
-      parentScope = node.parent?.type;
+    const node = this.trees.getDoc(document)?.rootNode.namedDescendantForPosition(asPoint(position));
+    if (!node) {
+      return [];
+    }
+
+    const currentScope = node.type;
+    const parentScope = node.parent?.type;
     console.log(`current ast scope ${currentScope}, parent ast scope ${parentScope}`);
 
     const ctx = node.text;
@@ -103,6 +124,9 @@ export default class CompletionItemProvider implements vscode.CompletionItemProv
       case 'service':
         break;
       case 'rpc':
+        if (prev?.tok === '(') {
+          completionResults.push(...this.requestResponseType(document));
+        }
         break;
       case 'block_lit':
         break;
@@ -114,6 +138,8 @@ export default class CompletionItemProvider implements vscode.CompletionItemProv
         } else if (parentScope === 'message_body' && !prev) {
           // 猜测是未完成的 field 子树起始位置，后继节点不符合语法结构造成解析出 ERROR。
           completionResults.push(...this.fieldHeading(document));
+        } else if (parentScope === 'service' && prev?.tok === '(') {
+          completionResults.push(...this.requestResponseType(document));
         }
         break;
 

@@ -1,6 +1,8 @@
 import { Tree } from 'web-tree-sitter';
 import Parser = require('web-tree-sitter');
 import * as vscode from 'vscode';
+import { fileURLToPath } from 'url';
+import { readFileSync } from 'fs';
 
 export function asPoint(pos: vscode.Position): Parser.Point {
   return { row: pos.line, column: pos.character };
@@ -14,7 +16,7 @@ export function asRange(node: Parser.SyntaxNode): vscode.Range {
   return new vscode.Range(asPosition(node.startPosition), asPosition(node.endPosition));
 }
 
-export default class ProtoTrees {
+export default class ProtoTrees implements Iterable<Tree> {
   private lang: Parser.Language;
   private parser: Parser;
   private docTrees: { [doc: string]: { tree: Tree; version: number } };
@@ -26,12 +28,35 @@ export default class ProtoTrees {
     this.docTrees = {};
   }
 
-  addDoc(doc: vscode.TextDocument) {
-    const docUri = doc.uri.toString();
+  *[Symbol.iterator](): Iterator<Tree, any, undefined> {
+    for (const key in this.docTrees) {
+      if (Object.prototype.hasOwnProperty.call(this.docTrees, key)) {
+        const tree = this.docTrees[key];
+        yield tree.tree;
+      }
+    }
+  }
+
+  addDoc(uri: string, content: string, version: number): void;
+  addDoc(doc: vscode.TextDocument): void;
+  addDoc(doc: string | vscode.TextDocument, content?: string, version?: number): void {
+    // check overload function signature
+    let docUri = '';
+    if (typeof doc === 'string') {
+      docUri = doc;
+      if (content === undefined || version === undefined) {
+        throw new Error('content and version are required parameters');
+      }
+    } else {
+      docUri = doc.uri.toString();
+      content = doc.getText();
+      version = doc.version;
+    }
+
     // doc not exists or doc version lower than current doc version, rebuild tree
-    if (!this.docTrees[docUri] || this.docTrees[docUri].version < doc.version) {
-      const tree = this.parser.parse(doc.getText());
-      this.docTrees[docUri] = { tree, version: doc.version };
+    if (!this.docTrees[docUri] || this.docTrees[docUri].version < version) {
+      const tree = this.parser.parse(content);
+      this.docTrees[docUri] = { tree, version };
     }
   }
 
@@ -92,13 +117,26 @@ export default class ProtoTrees {
     return this.lang.query(source);
   }
 
-  get(doc: vscode.TextDocument): Tree {
-    const docId: string = doc.uri.toString();
-    if (!this.docTrees[docId]) {
-      this.addDoc(doc);
+  getDoc(doc: vscode.TextDocument): Tree | null;
+  getDoc(uri: string): Tree | null;
+  getDoc(doc: vscode.TextDocument | string): Tree | null {
+    let docId: string;
+    if (typeof doc === 'string') {
+      docId = doc;
+    } else {
+      docId = doc.uri.toString();
     }
 
-    return this.docTrees[docId].tree;
+    if (!this.docTrees[docId]) {
+      if (typeof doc === 'string') {
+        const content = readFileSync(fileURLToPath(docId)).toString('utf-8');
+        this.addDoc(docId, content, 1);
+      } else {
+        this.addDoc(doc);
+      }
+    }
+
+    return this.docTrees[docId].tree || null;
   }
 
   walk(doc: vscode.TextDocument): Parser.TreeCursor {
