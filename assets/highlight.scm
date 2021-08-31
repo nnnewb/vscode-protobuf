@@ -41,17 +41,7 @@
   (float_lit)
 ] @number
  
-(field
-  field_name: (identifier) @property)
-
-(map_field
-  field_name: (identifier) @property)
-
-(oneof
-  field_name: (identifier) @property)
-
-(oneof_field
-  field_name: (identifier) @property)
+(field_name) @property
 
 (rpc
   request_type: (message_or_enum_type) @type)
