@@ -2,6 +2,11 @@
   "name": "protobuf",
   "displayName": "protobuf",
   "description": "protocol buffer language support",
+  "icon": "assets/icon.png",
+  "publisher": "weakptr",
+  "repository": {
+    "url": "https://github.com/nnnewb/vscode-protobuf"
+  },
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.58.0"
