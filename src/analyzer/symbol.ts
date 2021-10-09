@@ -22,6 +22,7 @@ export class ProtoSymbol {
     public name: string,
     public kind: SymbolKind,
     public type: string,
+    public pkg: string,
     public scope: string,
     public source: string,
     public range: Range
@@ -31,6 +32,10 @@ export class ProtoSymbol {
    * 符号的全称 {scope}.{name}
    */
   get fullIdent(): string {
-    return `${this.scope}.${this.name}`;
+    if (this.scope) {
+      return `${this.scope}.${this.name}`;
+    } else {
+      return this.name;
+    }
   }
 }

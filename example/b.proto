@@ -1,0 +1,8 @@
+syntax = "proto3";
+package b;
+
+message MyFieldA { int32 a = 1; }
+
+message MyFieldB { string b = 2; }
+
+message MyFieldC { float c = 2; }

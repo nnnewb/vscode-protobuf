@@ -4,7 +4,7 @@ import path = require('path');
 import { existsSync } from 'fs';
 import { pathToFileURL } from 'url';
 import { Tree } from 'web-tree-sitter';
-import { getFullName } from '../utils/wrapper';
+import { getFullScope } from '../utils/wrapper';
 
 export interface AnalyzerConfig {
   importPaths: string[];
@@ -77,16 +77,34 @@ export class Analyzer {
       field_name: SymbolKind.field,
     };
 
-    for (const capture of this.trees
+    let packageName = '';
+    const packageCaptures = this.trees
+      .query('(package package_name: (full_ident) @package_name)')
+      .captures(tree.rootNode);
+    if (packageCaptures.length > 0) {
+      packageName = packageCaptures[0].node.text;
+    }
+
+    const captures = this.trees
       .query('[(message_name) (enum_name) (rpc_name) (service_name) (field_name)] @name')
-      .captures(tree.rootNode)) {
+      .captures(tree.rootNode);
+
+    for (const capture of captures) {
       symbols.push(
-        new ProtoSymbol(capture.node.text, kindMapping[capture.node.type], '', getFullName(capture.node), uri, {
-          startIndex: capture.node.startIndex,
-          endIndex: capture.node.endIndex,
-          startPosition: capture.node.startPosition,
-          endPosition: capture.node.endPosition,
-        })
+        new ProtoSymbol(
+          capture.node.text,
+          kindMapping[capture.node.type],
+          '',
+          packageName,
+          capture.node.type === 'message_name' ? getFullScope(capture.node.parent!) : '',
+          uri,
+          {
+            startIndex: capture.node.startIndex,
+            endIndex: capture.node.endIndex,
+            startPosition: capture.node.startPosition,
+            endPosition: capture.node.endPosition,
+          }
+        )
       );
     }
 

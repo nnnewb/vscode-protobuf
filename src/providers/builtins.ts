@@ -4,11 +4,13 @@ export function createCompletionOption(
   label: string | vscode.CompletionItemLabel,
   kind: vscode.CompletionItemKind | undefined,
   documentation?: string | vscode.MarkdownString,
-  range?: vscode.Range
+  range?: vscode.Range,
+  detail?: string
 ): vscode.CompletionItem {
   const item = new vscode.CompletionItem(label, kind);
   item.documentation = documentation;
   item.range = range;
+  item.detail = detail;
   return item;
 }
 

@@ -1,64 +1,48 @@
 import * as vscode from 'vscode';
 import { SyntaxNode } from 'web-tree-sitter';
+import { Analyzer } from '../analyzer';
+import { SymbolKind } from '../analyzer/symbol';
 import ProtoTrees, { asPoint, asRange } from '../trees';
 import Tokenizer, { Token } from '../utils/tokenizer';
-import { getFullName } from '../utils/wrapper';
 import { createCompletionOption, scalarTypes, keywords, documentOptions, fieldOptions } from './builtins';
 
 export default class CompletionItemProvider implements vscode.CompletionItemProvider {
-  constructor(public trees: ProtoTrees) {}
-
-  documentOptions(document: vscode.TextDocument): vscode.CompletionItem[] {
-    return documentOptions;
-  }
+  constructor(public trees: ProtoTrees, public analyzer: Analyzer) {}
 
   requestResponseType(document: vscode.TextDocument): vscode.CompletionItem[] {
-    const root = this.trees.getDoc(document)?.rootNode;
-    if (!root) {
-      return [];
-    }
-
-    return this.trees
-      .query('(message) @msg')
-      .captures(root)
-      .map((capture) => createCompletionOption(getFullName(capture.node), vscode.CompletionItemKind.Struct));
+    const symbols = this.analyzer.discoverProtoSymbols(document.uri.toString());
+    return [
+      ...symbols
+        .filter((sym) => sym.kind === SymbolKind.message)
+        .map((sym) => createCompletionOption(sym.name, vscode.CompletionItemKind.Struct)),
+    ];
   }
 
   fieldType(document: vscode.TextDocument): vscode.CompletionItem[] {
-    const availableEnums: vscode.CompletionItem[] = [];
-    const root = this.trees.getDoc(document)?.rootNode;
-    if (!root) {
-      return [];
-    }
+    const symbols = this.analyzer.discoverProtoSymbols(document.uri.toString());
 
-    availableEnums.push(
-      ...this.trees
-        .query('(enum) @enum')
-        .captures(root)
-        .map((capture) => createCompletionOption(getFullName(capture.node), vscode.CompletionItemKind.Enum))
-    );
+    return [
+      ...symbols
+        .filter((sym) => sym.kind === SymbolKind.enum)
+        .map((sym) => createCompletionOption(sym.name, vscode.CompletionItemKind.Enum)),
 
-    const availableMessages: vscode.CompletionItem[] = [];
-    availableMessages.push(
-      ...this.trees
-        .query('(message) @msg')
-        .captures(root)
-        .map((capture) => createCompletionOption(getFullName(capture.node), vscode.CompletionItemKind.Struct)),
-      ...scalarTypes
-    );
-
-    return availableEnums.concat(availableMessages);
+      ...symbols
+        .filter((sym) => sym.kind === SymbolKind.message)
+        .map((sym) => createCompletionOption(sym.name, vscode.CompletionItemKind.Struct)),
+      ...scalarTypes,
+    ];
   }
 
   fieldHeading(document: vscode.TextDocument): vscode.CompletionItem[] {
     return [keywords.option, keywords.optional, keywords.repeated].concat(this.fieldType(document));
   }
 
-  fieldOptions(document: vscode.TextDocument): vscode.CompletionItem[] {
-    return [...fieldOptions];
-  }
-
   provideCompletionItems(document: vscode.TextDocument, position: vscode.Position): vscode.CompletionItem[] {
+    if (this.analyzer.config.importPaths.length === 0) {
+      const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+      this.analyzer.config.importPaths.push(workspaceFolder!.uri.fsPath);
+    }
+
     const node = this.trees.getDoc(document)?.rootNode.namedDescendantForPosition(asPoint(position));
     if (!node) {
       return [];
@@ -87,7 +71,7 @@ export default class CompletionItemProvider implements vscode.CompletionItemProv
             keywords.enum
           );
         } else if (prev.tok === 'option') {
-          completionResults.push(...this.documentOptions(document));
+          completionResults.push(...documentOptions);
         }
         break;
       case 'message_body':
@@ -118,7 +102,7 @@ export default class CompletionItemProvider implements vscode.CompletionItemProv
       case 'field_option':
         if (!prev || prev.tok === ',') {
           // 光标在一个 field option 的起始位置
-          completionResults.push(...this.fieldOptions(document));
+          completionResults.push(...fieldOptions);
         }
         break;
       case 'service':
@@ -134,7 +118,7 @@ export default class CompletionItemProvider implements vscode.CompletionItemProv
         if (parentScope === 'field' && prev && (prev.tok === '[' || prev.tok === '(')) {
           // 猜测是未完成的 field_options 子树
           // 光标在 field_options 中的起始位置
-          completionResults.push(...this.fieldOptions(document));
+          completionResults.push(...fieldOptions);
         } else if (parentScope === 'message_body' && !prev) {
           // 猜测是未完成的 field 子树起始位置，后继节点不符合语法结构造成解析出 ERROR。
           completionResults.push(...this.fieldHeading(document));

@@ -17,3 +17,21 @@ export function getFullName(node: SyntaxNode) {
 
   return stack.reverse().join('.');
 }
+
+export function getFullScope(node: SyntaxNode) {
+  if (node.type !== 'message' && node.type !== 'enum') {
+    throw new Error('unexpected node type, required message node');
+  }
+
+  const stack: string[] = [];
+
+  for (
+    let cur: SyntaxNode | null | undefined = node?.parent?.parent;
+    cur !== null && cur !== undefined && (cur.type === 'message' || cur.type === 'enum');
+    cur = cur?.parent?.type === 'message_body' ? cur.parent.parent : null
+  ) {
+    stack.push(cur.firstNamedChild!.text);
+  }
+
+  return stack.reverse().join('.');
+}

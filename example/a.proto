@@ -1,0 +1,18 @@
+syntax = "proto3";
+package a;
+import "b.proto";
+
+message MyRequest {
+  MyFieldA a = 1;
+  MyFieldB b = 2;
+  MyFieldC c = 3;
+  message MyRequest1 { MyFieldA a = 1; }
+}
+
+message MyResponse {
+}
+
+service MyService {
+  rpc MyMethod(MyRequest) returns (MyResponse);
+  rpc MyMethod2(MyRequest) returns (MyResponse);
+}
