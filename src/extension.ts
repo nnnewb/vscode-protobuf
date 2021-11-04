@@ -65,13 +65,15 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   }
 
+  const globalAnalyzer = new Analyzer(trees, { importPaths: [] });
+
   const semanticHighlightProvider = new SemanticTokenProvider(trees, legend);
   context.subscriptions.push(
     vscode.languages.registerDocumentSemanticTokensProvider(selector, semanticHighlightProvider, legend),
     vscode.languages.registerDocumentRangeSemanticTokensProvider(selector, semanticHighlightProvider, legend)
   );
 
-  const definitionProvider = new DefinitionProvider(trees);
+  const definitionProvider = new DefinitionProvider(globalAnalyzer);
   context.subscriptions.push(vscode.languages.registerDefinitionProvider(selector, definitionProvider));
 
   const documentSymbolProvider = new DocumentSymbolProvider(trees);
@@ -80,7 +82,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const hoverProvider = new HoverProvider(trees);
   context.subscriptions.push(vscode.languages.registerHoverProvider(selector, hoverProvider));
 
-  const completionProvider = new CompletionItemProvider(trees, new Analyzer(trees, { importPaths: [] }));
+  const completionProvider = new CompletionItemProvider(trees, globalAnalyzer);
   context.subscriptions.push(vscode.languages.registerCompletionItemProvider(selector, completionProvider));
 
   console.log('extension activated!');

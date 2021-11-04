@@ -1,25 +1,24 @@
 import * as vscode from 'vscode';
+import { Definition, Location, LocationLink, Position, ProviderResult, TextDocument } from 'vscode';
+import { Analyzer } from '../analyzer';
 import ProtoTrees from '../trees';
 import { asRange } from '../trees';
 
 export default class DefinitionProvider implements vscode.DefinitionProvider {
-  constructor(public trees: ProtoTrees) {}
-  provideDefinition(
-    document: vscode.TextDocument,
-    position: vscode.Position
-  ): vscode.ProviderResult<vscode.Definition | vscode.LocationLink[]> {
+  constructor(public analyzer: Analyzer) {}
+  provideDefinition(document: TextDocument, position: Position): ProviderResult<Definition | LocationLink[]> {
     const sym = document.getText(document.getWordRangeAtPosition(position));
-    const root = this.trees.getDoc(document)?.rootNode;
+    const root = this.analyzer.trees.getDoc(document)?.rootNode;
     if (!root) {
       return null;
     }
 
     return Promise.resolve(
-      this.trees
+      this.analyzer.trees
         .query('(message (message_name) @message)')
         .captures(root)
         .filter((c) => c.node.text === sym)
-        .map((capture) => new vscode.Location(document.uri, asRange(capture.node)))
+        .map((capture) => new Location(document.uri, asRange(capture.node)))
     );
   }
 }
