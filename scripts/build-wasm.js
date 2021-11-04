@@ -1,35 +1,17 @@
-const task = require('tasuku');
-const sh = require('shelljs');
+const { spawn } = require('child_process');
+const { copyFile } = require('fs/promises');
 
-/**
- *
- * @param {string} command shell command
- * @param {sh.ExecOptions} options execute options
- * @returns final result
- */
-function execAsync(command, options) {
-  return new Promise((resolve, reject) => {
-    sh.exec(
-      command,
-      {
-        ...options,
-        async: true,
-      },
-      function (code, stdout, stderr) {
-        if (code === 0) {
-          resolve(stdout);
-        } else {
-          reject(stderr);
-        }
+new Promise((resolve, reject) =>
+  spawn('npm run build-wasm', { shell: true, cwd: '3rd/tree-sitter-proto', env: process.env, stdio: 'inherit' }).once(
+    'exit',
+    (code, signal) => {
+      if (code !== 0) {
+        reject(`npm run build-wasm has unexpected exit code ${code}`);
+      } else {
+        resolve();
       }
-    );
-  });
-}
-
-task('build-wasm', async ({ setTitle }) => {
-  sh.cd('3rd/tree-sitter-proto');
-  setTitle('compiling...');
-  await execAsync('npm run build-wasm', { silent: true, async: true });
-  sh.cp('tree-sitter-proto.wasm', '../../assets/');
-  setTitle('build-wasm complete');
-});
+    }
+  )
+)
+  .then(() => copyFile('3rd/tree-sitter-proto/tree-sitter-proto.wasm', 'assets/tree-sitter-proto.wasm'))
+  .catch(console.error);
