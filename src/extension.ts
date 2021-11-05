@@ -16,77 +16,85 @@ let trees: ProtoTrees | null = null;
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export async function activate(context: vscode.ExtensionContext) {
-  // register semantic tokens provider
-  const tokenTypes = [
-    'type',
-    'enum',
-    'class',
-    'function',
-    'comment',
-    'string',
-    'number',
-    'keyword',
-    'parameter',
-    'member',
-    'property',
-    'enumMember',
-    'namespace',
-  ];
-  const modifiers = ['definition', 'deprecated', 'documentation'];
-  const selector: vscode.DocumentSelector = { language: 'proto', scheme: 'file' };
-  const legend = new vscode.SemanticTokensLegend(tokenTypes, modifiers);
+  await Parser.init()
+    .then(() => {
+      console.log('tree-sitter initialized');
+      return Parser.Language.load(path.resolve(__dirname, '../assets/tree-sitter-proto.wasm'));
+    })
+    .then((lang) => {
+      console.log('tree-sitter-proto.wasm loaded');
+      trees = new ProtoTrees(lang);
+      return Promise.resolve(trees);
+    })
+    .then((trees) => {
+      vscode.workspace.onDidOpenTextDocument(function (doc) {
+        if (doc.languageId === 'proto') {
+          trees?.addDoc(doc);
+        }
+      });
+      vscode.workspace.onDidCloseTextDocument(function (doc) {
+        if (doc.languageId === 'proto') {
+          trees?.dropDoc(doc.uri.toString());
+        }
+      });
+      vscode.workspace.onDidChangeTextDocument(function (ev) {
+        if (ev.document.languageId === 'proto') {
+          trees?.editDoc(ev);
+        }
+      });
 
-  await Parser.init();
-  console.log('tree-sitter initialized');
+      for (const editor of vscode.window.visibleTextEditors) {
+        if (editor.document.languageId === 'proto') {
+          trees?.addDoc(editor.document);
+        }
+      }
 
-  const lang = await Parser.Language.load(path.resolve(__dirname, '../assets/tree-sitter-proto.wasm'));
-  console.log('tree-sitter-proto.wasm loaded');
-  trees = new ProtoTrees(lang);
+      const configuration = vscode.workspace.getConfiguration('protobuf');
+      const globalAnalyzer = new Analyzer(trees, { importPaths: configuration.get('importPath', []) });
 
-  vscode.workspace.onDidOpenTextDocument(function (doc) {
-    if (doc.languageId === 'proto') {
-      trees?.addDoc(doc);
-    }
-  });
-  vscode.workspace.onDidCloseTextDocument(function (doc) {
-    if (doc.languageId === 'proto') {
-      trees?.dropDoc(doc.uri.toString());
-    }
-  });
-  vscode.workspace.onDidChangeTextDocument(function (ev) {
-    if (ev.document.languageId === 'proto') {
-      trees?.editDoc(ev);
-    }
-  });
+      // register semantic tokens provider
+      const tokenTypes = [
+        'type',
+        'enum',
+        'class',
+        'function',
+        'comment',
+        'string',
+        'number',
+        'keyword',
+        'parameter',
+        'member',
+        'property',
+        'enumMember',
+        'namespace',
+      ];
+      const modifiers = ['definition', 'deprecated', 'documentation'];
+      const selector: vscode.DocumentSelector = { language: 'proto', scheme: 'file' };
+      const legend = new vscode.SemanticTokensLegend(tokenTypes, modifiers);
 
-  for (const editor of vscode.window.visibleTextEditors) {
-    if (editor.document.languageId === 'proto') {
-      trees.addDoc(editor.document);
-    }
-  }
+      const semanticHighlightProvider = new SemanticTokenProvider(trees, legend);
+      context.subscriptions.push(
+        vscode.languages.registerDocumentSemanticTokensProvider(selector, semanticHighlightProvider, legend),
+        vscode.languages.registerDocumentRangeSemanticTokensProvider(selector, semanticHighlightProvider, legend)
+      );
 
-  const configuration = vscode.workspace.getConfiguration('protobuf');
-  const globalAnalyzer = new Analyzer(trees, { importPaths: configuration.get('importPath', []) });
+      const definitionProvider = new DefinitionProvider(globalAnalyzer);
+      context.subscriptions.push(vscode.languages.registerDefinitionProvider(selector, definitionProvider));
 
-  const semanticHighlightProvider = new SemanticTokenProvider(trees, legend);
-  context.subscriptions.push(
-    vscode.languages.registerDocumentSemanticTokensProvider(selector, semanticHighlightProvider, legend),
-    vscode.languages.registerDocumentRangeSemanticTokensProvider(selector, semanticHighlightProvider, legend)
-  );
+      const documentSymbolProvider = new DocumentSymbolProvider(trees);
+      context.subscriptions.push(vscode.languages.registerDocumentSymbolProvider(selector, documentSymbolProvider));
 
-  const definitionProvider = new DefinitionProvider(globalAnalyzer);
-  context.subscriptions.push(vscode.languages.registerDefinitionProvider(selector, definitionProvider));
+      const hoverProvider = new HoverProvider(trees);
+      context.subscriptions.push(vscode.languages.registerHoverProvider(selector, hoverProvider));
 
-  const documentSymbolProvider = new DocumentSymbolProvider(trees);
-  context.subscriptions.push(vscode.languages.registerDocumentSymbolProvider(selector, documentSymbolProvider));
+      const completionProvider = new CompletionItemProvider(trees, globalAnalyzer);
+      context.subscriptions.push(vscode.languages.registerCompletionItemProvider(selector, completionProvider));
 
-  const hoverProvider = new HoverProvider(trees);
-  context.subscriptions.push(vscode.languages.registerHoverProvider(selector, hoverProvider));
-
-  const completionProvider = new CompletionItemProvider(trees, globalAnalyzer);
-  context.subscriptions.push(vscode.languages.registerCompletionItemProvider(selector, completionProvider));
-
-  console.log('extension activated!');
+      console.log('extension activated!');
+    })
+    .catch((err) => {
+      vscode.window.showErrorMessage(`tree-sitter initialize failed, error: ${err}`);
+    });
 }
 
 // this method is called when your extension is deactivated
