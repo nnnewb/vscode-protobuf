@@ -65,7 +65,8 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   }
 
-  const globalAnalyzer = new Analyzer(trees, { importPaths: ['.'] });
+  const configuration = vscode.workspace.getConfiguration('protobuf');
+  const globalAnalyzer = new Analyzer(trees, { importPaths: configuration.get('importPath', []) });
 
   const semanticHighlightProvider = new SemanticTokenProvider(trees, legend);
   context.subscriptions.push(

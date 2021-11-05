@@ -19,6 +19,22 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "configuration": {
+      "title": "ProtoBuf",
+      "properties": {
+        "protobuf.importPath": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "default": [],
+          "description": "Import search paths.",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "configurationDefaults": {
       "[proto]": {
         "editor.semanticHighlighting.enabled": true
