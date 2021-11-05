@@ -10,8 +10,8 @@ Help daily work with protocol buffer bulls\*\*t easier.
 - [x] document symbol provider
 - [x] basic definition provider (current document only)
 - [x] hover provider
-- [ ] code completion
-- [ ] resolve imports (smarter code completion/navigation)
-- [ ] frequently used snippets
+- [x] code completion
+- [x] resolve imports (smarter code completion/navigation)
+- [x] frequently used snippets
 - [ ] linting
-- [ ] format
+- [?] format (this one is much more better [clang-format extension](https://marketplace.visualstudio.com/items?itemName=xaver.clang-format))
