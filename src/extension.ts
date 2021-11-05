@@ -65,7 +65,7 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   }
 
-  const globalAnalyzer = new Analyzer(trees, { importPaths: [] });
+  const globalAnalyzer = new Analyzer(trees, { importPaths: ['.'] });
 
   const semanticHighlightProvider = new SemanticTokenProvider(trees, legend);
   context.subscriptions.push(

@@ -2,7 +2,7 @@ import ProtoTrees from '../trees';
 import { ProtoSymbol, SymbolKind } from './symbol';
 import path = require('path');
 import { existsSync } from 'fs';
-import { pathToFileURL } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { Tree } from 'web-tree-sitter';
 import { getFullScope } from '../utils/wrapper';
 
@@ -18,8 +18,9 @@ export class Analyzer {
    * @param target import的路径
    * @returns 解析结果，最终存在并使用的文件路径
    */
-  private resolveImportPath(target: string): string | null {
-    for (const p of this.config.importPaths) {
+  private resolveImportPath(src: string, target: string): string | null {
+    const sourceDir = path.dirname(path.resolve(fileURLToPath(src)));
+    for (const p of this.config.importPaths.concat([sourceDir])) {
       const resolved = path.resolve(p, target);
       if (existsSync(resolved)) {
         return resolved;
@@ -33,13 +34,14 @@ export class Analyzer {
    * @param tree 需要解析import语句的语法树
    * @returns 所有被导入的语法树
    */
-  private findImportSymbols(tree: Tree): ProtoSymbol[] {
+  private findImportSymbols(fileUri: string, tree: Tree): ProtoSymbol[] {
     const importedSymbols: ProtoSymbol[] = [];
 
     // resolve import statement in source file
     for (const capture of this.trees.query('(import path: (string) @ip)').captures(tree.rootNode)) {
-      const imported = this.resolveImportPath(capture.node.text.replace(/^["']/, '').replace(/['"]$/, ''));
+      const imported = this.resolveImportPath(fileUri, capture.node.text.replace(/^["']/, '').replace(/['"]$/, ''));
       if (!imported) {
+        console.log('resolve import "${capture.node.text}" failed');
         continue;
       }
 
@@ -50,7 +52,7 @@ export class Analyzer {
       }
 
       // do parse recursively
-      importedSymbols.push(...this.findLocalSymbols(uri, importedTree), ...this.findImportSymbols(importedTree));
+      importedSymbols.push(...this.findLocalSymbols(uri, importedTree), ...this.findImportSymbols(uri, importedTree));
     }
 
     return importedSymbols;
@@ -122,6 +124,6 @@ export class Analyzer {
       return [];
     }
 
-    return [...this.findLocalSymbols(uri, tree), ...this.findImportSymbols(tree)];
+    return [...this.findLocalSymbols(uri, tree), ...this.findImportSymbols(uri, tree)];
   }
 }
