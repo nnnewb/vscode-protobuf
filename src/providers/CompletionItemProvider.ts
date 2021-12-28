@@ -10,7 +10,7 @@ export default class CompletionItemProvider implements vscode.CompletionItemProv
   constructor(public trees: ProtoTrees, public analyzer: Analyzer) {}
 
   requestResponseType(document: vscode.TextDocument): vscode.CompletionItem[] {
-    const symbols = this.analyzer.discoverProtoSymbols(document.uri.toString());
+    const symbols = this.analyzer.discoverProtoSymbols(document.uri.toString(), true);
     return [
       ...symbols
         .filter((sym) => sym.kind === SymbolKind.message)
@@ -19,7 +19,7 @@ export default class CompletionItemProvider implements vscode.CompletionItemProv
   }
 
   fieldType(document: vscode.TextDocument): vscode.CompletionItem[] {
-    const symbols = this.analyzer.discoverProtoSymbols(document.uri.toString());
+    const symbols = this.analyzer.discoverProtoSymbols(document.uri.toString(), true);
 
     return [
       ...symbols

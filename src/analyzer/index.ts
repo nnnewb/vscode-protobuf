@@ -41,7 +41,7 @@ export class Analyzer {
     for (const capture of this.trees.query('(import path: (string) @ip)').captures(tree.rootNode)) {
       const imported = this.resolveImportPath(fileUri, capture.node.text.replace(/^["']/, '').replace(/['"]$/, ''));
       if (!imported) {
-        console.log('resolve import "${capture.node.text}" failed');
+        console.log(`resolve import ${capture.node.text} failed`);
         continue;
       }
 
@@ -105,7 +105,8 @@ export class Analyzer {
             endIndex: capture.node.endIndex,
             startPosition: capture.node.startPosition,
             endPosition: capture.node.endPosition,
-          }
+          },
+          capture.node
         )
       );
     }
@@ -116,14 +117,19 @@ export class Analyzer {
   /**
    * 查询源码文件中所有可见符号
    * @param uri 源码文件uri
+   * @param imported 是否包括导入的符号
    * @returns 所有源码中的可见符号
    */
-  discoverProtoSymbols(uri: string): ProtoSymbol[] {
+  discoverProtoSymbols(uri: string, imported: boolean): ProtoSymbol[] {
     const tree = this.trees.getDoc(uri);
     if (!tree) {
       return [];
     }
 
-    return [...this.findLocalSymbols(uri, tree), ...this.findImportSymbols(uri, tree)];
+    if (imported) {
+      return [...this.findLocalSymbols(uri, tree), ...this.findImportSymbols(uri, tree)];
+    } else {
+      return this.findLocalSymbols(uri, tree);
+    }
   }
 }

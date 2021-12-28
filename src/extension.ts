@@ -81,10 +81,10 @@ export async function activate(context: vscode.ExtensionContext) {
       const definitionProvider = new DefinitionProvider(globalAnalyzer);
       context.subscriptions.push(vscode.languages.registerDefinitionProvider(selector, definitionProvider));
 
-      const documentSymbolProvider = new DocumentSymbolProvider(trees);
+      const documentSymbolProvider = new DocumentSymbolProvider(globalAnalyzer);
       context.subscriptions.push(vscode.languages.registerDocumentSymbolProvider(selector, documentSymbolProvider));
 
-      const hoverProvider = new HoverProvider(trees);
+      const hoverProvider = new HoverProvider(globalAnalyzer);
       context.subscriptions.push(vscode.languages.registerHoverProvider(selector, hoverProvider));
 
       const completionProvider = new CompletionItemProvider(trees, globalAnalyzer);

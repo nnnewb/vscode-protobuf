@@ -1,4 +1,6 @@
+import { ParameterInformation } from 'vscode';
 import { Range } from 'web-tree-sitter';
+import Parser = require('web-tree-sitter');
 
 export enum SymbolKind {
   message,
@@ -25,7 +27,8 @@ export class ProtoSymbol {
     public pkg: string,
     public scope: string,
     public source: string,
-    public range: Range
+    public range: Range,
+    public node: Parser.SyntaxNode
   ) {}
 
   /**

@@ -1,8 +1,14 @@
 # vscode extension for protocol buffer v3 (proto3)
 
-## goal
+## usage
 
-Help daily work with protocol buffer bulls\*\*t easier.
+install this extension, open workspace settings, put your import paths.
+
+```json
+{
+  "protobuf.importPath": ["/usr/local/include"]
+}
+```
 
 ## features
 
